@@ -432,6 +432,73 @@ let inv varr =
     result_varr)
 
 
+let _svd_decompose a =
+  let k = M.kind a in
+  let _abs = Owl_base_dense_common._abs_elt k in
+  let _add = Owl_base_dense_common._add_elt k in
+  let _mul = Owl_base_dense_common._mul_elt k in
+  let _div = Owl_base_dense_common._div_elt k in
+  let _sub = Owl_base_dense_common._sub_elt k in
+  let _flt = Owl_base_dense_common._float_typ_elt k in
+  let _zero = Owl_const.zero k in
+  let _one = Owl_const.one k in
+  let u = M.copy a in
+  let dims = M.shape a in
+  let _ = _check_is_matrix dims in
+  let m = dims.(0) in
+  let n = dims.(1) in
+  let rv1 = Array.make n _zero in
+  let scale = ref _zero in
+  let g = ref _zero in
+  let s = ref _zero in
+  let f = ref _zero in
+  let h = ref _zero in
+  (* Householder reduction to bidiagonal form *)
+  for i = 0 to n - 1 do
+    let l = i + 2 in
+    rv1.(i) <- _mul !scale !g;
+    g := _zero;
+    s := _zero;
+    scale := _zero;
+    if i < m
+    then (
+      for k = i to m - 1 do
+        scale := _add !scale (M.get u [| k; i |] |> _abs)
+      done;
+      if !scale <> _zero
+      then (
+        for k = i to m - 1 do
+          let tmp = M.get u [| k; i |] in
+          let tmp = _div tmp !scale in
+          M.set u [| k; i |] tmp;
+          s := _add !s (_mul tmp tmp)
+        done;
+        f := M.get u [| i; i |];
+        (* !!!!! g := -SIGN *)
+        h := _sub (_mul !f !g) !s;
+        M.set u [| i; i |] (_sub !f !g);
+        for j = l - 1 to n - 1 do
+          s := _zero;
+          for k = i to m - 1 do
+            let tmp1 = M.get u [| k; i |] in
+            let tmp2 = M.get u [| k; j |] in
+            s := _add !s (_mul tmp1 tmp2)
+          done;
+          f := _div !s !h;
+          for k = i to m - 1 do
+            let tmp1 = M.get u [| k; i |] in
+            let tmp2 = M.get u [| k; j |] in
+            M.set u [| k; j |] (_add tmp2 (_mul !f tmp1))
+          done
+        done;
+        for k = i to m - 1 do
+          let tmp = M.get u [| k; i |] in
+          M.set u [| k; i |] (_mul !scale tmp)
+        done))
+  done;
+  ()
+
+
 let logdet _x =
   raise (Owl_exception.NOT_IMPLEMENTED "owl_base_dense_ndarray_generic.logdet")
 
